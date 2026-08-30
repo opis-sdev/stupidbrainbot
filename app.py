@@ -87,12 +87,11 @@ def process_message(text):
     prompt = SYSTEM_PROMPT.format(today=today)
     try:
         response = ai_client.chat.completions.create(
-            model="deepseek/deepseek-r1:free",
+            model="meta-llama/llama-3.3-70b-instruct:free",
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": text},
             ],
-            response_format={"type": "json_object"},
             temperature=0.1,
         )
         data = json.loads(response.choices[0].message.content)
@@ -179,7 +178,7 @@ def process_message(text):
             context_text = "\n\n".join(contents)
             answer_prompt = f"Based on the following notes, answer the question: {query}\n\n{context_text}"
             answer = ai_client.chat.completions.create(
-                model="deepseek/deepseek-r1:free",
+                model="meta-llama/llama-3.3-70b-instruct:free",
                 messages=[{"role": "user", "content": answer_prompt}],
                 temperature=0.3,
             ).choices[0].message.content
@@ -202,7 +201,7 @@ def process_message(text):
                 return "Couldn't extract text from that URL."
             summary_prompt = f"Summarise the following text in 3-5 bullet points:\n\n{text}"
             summary = ai_client.chat.completions.create(
-                model="deepseek/deepseek-r1:free",
+                model="meta-llama/llama-3.3-70b-instruct:free",
                 messages=[{"role": "user", "content": summary_prompt}],
                 temperature=0.3,
             ).choices[0].message.content
