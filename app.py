@@ -7,22 +7,25 @@ from github import Github
 from openai import OpenAI
 from flask import Flask, request
 
-# ---------- Environment variables (set in Vercel) ----------
+# ---------- Environment variables ----------
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 GITHUB_REPO = os.environ["GITHUB_REPO"]
-OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
+GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 ALLOWED_USER_ID = int(os.environ["ALLOWED_USER_ID"])
+
+# Model Configuration
+MODEL_NAME = "openai/gpt-oss-20b"
 
 # ---------- Clients ----------
 ai_client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=OPENROUTER_API_KEY,
+   base_url="https://api.groq.com/openai/v1",
+    api_key=GROQ_API_KEY,
 )
 gh = Github(GITHUB_TOKEN)
 repo = gh.get_repo(GITHUB_REPO)
 
-# ---------- Vault helper functions (same as before) ----------
+# ---------- Vault helpers ----------
 def read_file(path):
     try:
         file = repo.get_contents(path)
@@ -60,7 +63,7 @@ def write_file(path, content, operation="create", section=None):
             file = repo.get_contents(path)
             repo.update_file(path, f"Bot update: {path}", updated, sha=file.sha)
 
-# ---------- Intent classification prompt (same as before) ----------
+# ---------- Intent prompt ----------
 SYSTEM_PROMPT = """
 You are an AI assistant managing an Obsidian vault via GitHub. Today is {today}.
 Analyze the user's message and respond ONLY with a JSON object containing:
@@ -71,28 +74,23 @@ Analyze the user's message and respond ONLY with a JSON object containing:
     "content": "the note or task text",
     "tags": ["tag1", "tag2"],
     "file_path": "suggested file path (if save_note, optional)",
-    "section": "section header to append to (optional, default '## Tasks' for add_task, '## Journal' for journal)"
+    "section": "section header to append to (optional)"
 }}
-
-For save_note, if no file_path is given, suggest a path like Inbox/YYYY-MM-DD - Short Title.md.
-For add_task, the content should be a checkbox item (start with "- [ ] ").
-For journal, content is the text to append under ## Journal in today's daily note.
-For summarize_url, include the URL.
-For search_vault or ask_vault, include the query.
 """.strip()
 
-# ---------- Process a single user message (same logic, returns reply string) ----------
+# ---------- Process message ----------
 def process_message(text):
     today = datetime.datetime.now().strftime("%Y-%m-%d")
     prompt = SYSTEM_PROMPT.format(today=today)
     try:
         response = ai_client.chat.completions.create(
-            model="meta-llama/llama-3.3-70b-instruct:free",
+            model=MODEL_NAME,
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": text},
             ],
             temperature=0.1,
+            response_format={"type": "json_object"},  # Enforces valid JSON format
         )
         data = json.loads(response.choices[0].message.content)
     except Exception as e:
@@ -178,7 +176,7 @@ def process_message(text):
             context_text = "\n\n".join(contents)
             answer_prompt = f"Based on the following notes, answer the question: {query}\n\n{context_text}"
             answer = ai_client.chat.completions.create(
-                model="meta-llama/llama-3.3-70b-instruct:free",
+                model=MODEL_NAME,
                 messages=[{"role": "user", "content": answer_prompt}],
                 temperature=0.3,
             ).choices[0].message.content
@@ -201,7 +199,7 @@ def process_message(text):
                 return "Couldn't extract text from that URL."
             summary_prompt = f"Summarise the following text in 3-5 bullet points:\n\n{text}"
             summary = ai_client.chat.completions.create(
-                model="meta-llama/llama-3.3-70b-instruct:free",
+                model=MODEL_NAME,
                 messages=[{"role": "user", "content": summary_prompt}],
                 temperature=0.3,
             ).choices[0].message.content
@@ -216,6 +214,7 @@ def process_message(text):
     elif intent == "help":
         return """
 🤖 **Second Brain Bot Commands**
+pew pew pew
 
 - Save a note: "Save this idea: ..."
 - Add task: "Add buy groceries to today's tasks"
