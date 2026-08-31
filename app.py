@@ -213,7 +213,7 @@ def process_message(text):
 
     elif intent == "help":
         return """
-🤖 **Second Brain Bot Commands**
+🤖 **Second Brain Bot Commands oooowo**
 pew pew pew
 
 - Save a note: "Save this idea: ..."
